@@ -1,14 +1,21 @@
 import React from 'react';
 import { StatusBar, StyleSheet, View, Text } from 'react-native';
+import {createStore} from 'redux';
+import rootReducer from "./store/reducers/rootReducer";
+import {Provider} from 'react-redux';
 import StoryList from './components/StoryList'
+
+const store = createStore(rootReducer);
 
 const App = () => {
     return (
-        <View style={styles.container}>
-            <StatusBar />
-            <Text style={styles.title}>Hacker News - Topstories</Text>
-            <StoryList />
-        </View>
+        <Provider store={store}>
+            <View style={styles.container}>
+                <StatusBar />
+                <Text style={styles.title}>Hacker News - Topstories</Text>
+                <StoryList />
+            </View>
+        </Provider>
     );
 };
 

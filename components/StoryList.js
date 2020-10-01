@@ -10,17 +10,31 @@ import {
 } from 'react-native';
 import api from '../api/api';
 import Story from './Story'
+import {
+    useDispatch,
+    useSelector
+} from "react-redux";
 
 const StoryList = () => {
-    const [loading, setLoading] = useState(false);
+    const loading = useSelector(state => state.story.loading);
+    const stories = useSelector(state => state.story.stories);
+    const currentStories = useSelector(state => state.story.currentStories);
+    const currentPage = useSelector(state => state.story.currentPage);
+    const storiesPerPage = useSelector(state => state.story.storiesPerPage);
+    const dispatch = useDispatch();
+
     const [count, setCount] = useState(1);
-    const [topStories, setTopStories] = useState([]);
-    const [currentStories, setCurrentStories] = useState([]);
-    const [currentPage, setCurrentPage] = useState(1);
-    const STORY_PER_PAGE = 20;
 
     useEffect(() => {
-        fetchTopStories();
+        let unmounted = false;
+
+        if (!unmounted) {
+            fetchTopStories();
+        }
+
+        return () => {
+            unmounted = true
+        }
     }, [count]);
 
     setInterval(() => {
@@ -28,33 +42,58 @@ const StoryList = () => {
     }, 30000);
 
     const fetchTopStories = async () => {
-        setLoading(true);
+        dispatch({
+            type: 'LOADING',
+            payload: true
+        });
+
         try {
             const {data} = await api.get('/topstories.json?print=pretty');
-            setLoading(false);
-            await setTopStories(data);
-            storiesPagination(currentPage);
+
+            dispatch({
+                type: 'LOADING',
+                payload: false
+            });
+
+            dispatch({
+                type: 'STORIES_LIST',
+                payload: data
+            });
+
         } catch (e) {
+            dispatch({
+                type: 'LOADING',
+                payload: false
+            });
+
             console.log(e)
         }
     };
 
-    const storiesPagination = (page) => {
-        let stories = [];
-
-        for (let i = (page * STORY_PER_PAGE) - STORY_PER_PAGE; i <= Math.min(STORY_PER_PAGE * page, topStories.length) - 1; i++) {
-            stories.push(topStories[i])
-        }
-
-        setCurrentPage(page);
-        setCurrentStories(stories);
-    };
-
     const changePage = (type) => {
-        if (type === 'decrement' && currentPage === 1 || type === 'increment' && currentPage === Math.ceil(topStories.length / STORY_PER_PAGE)) {
+        if (type === 'decrement' && currentPage === 1 || type === 'increment' && currentPage === Math.ceil(stories.length / storiesPerPage)) {
             return;
         }
-        return type === 'decrement' ? storiesPagination(currentPage - 1) : storiesPagination(currentPage + 1);
+
+        if (type === 'decrement') {
+            dispatch({
+                type: 'CHANGE_PAGE',
+                payload: -1
+            });
+
+            dispatch({
+                type: 'CURRENT_STORIES_LIST',
+            });
+        } else {
+            dispatch({
+                type: 'CHANGE_PAGE',
+                payload: 1
+            });
+
+            dispatch({
+                type: 'CURRENT_STORIES_LIST',
+            });
+        }
     };
 
     if (loading) {
@@ -86,19 +125,19 @@ const StoryList = () => {
                 showsVerticalScrollIndicator={false}
                 keyExtractor={(story) => story.toString()}
                 data={currentStories}
-                renderItem={({item, index}) => <Story storyId={item} index={index} page={currentPage} perPage={STORY_PER_PAGE}/>}
+                renderItem={({item, index}) => <Story storyId={item} index={index} page={currentPage} perPage={storiesPerPage}/>}
             />
             <View style={styles.footerButtonWrapper}>
                 <TouchableOpacity
                     style={[styles.button, currentPage === 1 ? styles.buttonDisabled : null]}
-                    onPress={() => changePage('decrement')}
+                    onPress={() => !loading ? changePage('decrement'): null}
                 >
                     <Text style={styles.buttonText}>Back</Text>
                 </TouchableOpacity>
 
                 <TouchableOpacity
-                    style={[styles.button, currentPage === Math.ceil(topStories.length / STORY_PER_PAGE) ? styles.buttonDisabled : null]}
-                    onPress={() => changePage('increment')}
+                    style={[styles.button, currentPage === Math.ceil(stories.length / storiesPerPage) ? styles.buttonDisabled : null]}
+                    onPress={() => !loading ? changePage('increment') : null }
                 >
                     <Text style={styles.buttonText}>Show More</Text>
                 </TouchableOpacity>
